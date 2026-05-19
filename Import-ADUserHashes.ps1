@@ -1,6 +1,6 @@
 # Script Name: Import-ADUserHashes.ps1
 # Description: This script imports account hashes and synchronizes passwords in a target domain.
-# Author: bsparrow@concurrency.com
+# Maintainer: https://briansprrw.com
 # Date: 2024-08-07
 # Version: 1.0
 # 
@@ -44,16 +44,12 @@ if (Test-Path -Path $targetCredPath) {
 # Import the necessary variables from the export file
 Write-Output "Importing domain variables from file..."
 $exportData = Import-Clixml -Path 'C:/scripts/exportData.xml'
-$sourceDomainNetBIOS = $exportData.SourceDomainNetBIOS
-$sourceDomainFQDN = $exportData.SourceDomainFQDN
-$sourceDomainDN = $exportData.SourceDomainDN
 $attribute = $exportData.Attribute
 
 # Set the necessary domain variables for the target domain
 Write-Output "Setting domain variables for the target domain..."
 $targetDomainNetBIOS = 'target1'
 $targetDomainFQDN = 'target1.local'
-$targetDomainDN = 'DC=target1,DC=local'
 
 # Function to synchronize password hashes with error handling
 function Sync-PasswordHashes {

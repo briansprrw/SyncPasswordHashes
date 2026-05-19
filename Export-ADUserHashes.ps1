@@ -1,6 +1,6 @@
 # Script Name: Export-ADUserHashes.ps1
 # Description: This script exports account hashes and domain information from a source domain.
-# Author: bsparrow@concurrency.com
+# Maintainer: https://briansprrw.com
 # Date: 2024-08-07
 # Version: 1.0
 # 

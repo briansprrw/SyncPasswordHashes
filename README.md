@@ -1,151 +1,168 @@
-================================================================================
-Export-ADUserHashes.ps1 & Import-ADUserHashes.ps1
-================================================================================
+# AD User Password Hash Sync
 
-Author: bsparrow@concurrency.com
-Date: 2024-08-07
+Export and import Active Directory user password hashes between domains securely and efficiently.
 
---------------------------------------------------------------------------------
-DESCRIPTION
---------------------------------------------------------------------------------
+## Overview
 
-These PowerShell scripts are designed to export and import Active Directory 
-(AD) user account password hashes between domains, specifically for users 
-with a specified AD attribute set to "migrate". These scripts are designed
-to be able to run on separated environments without connectivity to the other.
-Files generated during the export must be manually copied to the machine where
-they will be imported.
+This toolset provides two PowerShell scripts designed to export and import Active Directory (AD) user account password hashes between domains. Users are selected for migration based on a specified AD attribute set to `"migrate"`. The scripts operate independently and are designed to work in disconnected environments—exported files must be manually transferred between source and target domains.
 
---------------------------------------------------------------------------------
-PREREQUISITES
---------------------------------------------------------------------------------
+**Maintainer:** [briansprrw.com](https://briansprrw.com)  
+**Date:** 2024-08-07  
+**Version:** 1.0
 
-- Ensure you have the necessary permissions to run these scripts in the 
-  source and target domains.
-- The 'DSInternals' PowerShell module must be installed and up to date.
-- The AD attribute that will be used to filter users (default is 'pager') 
-  should be set to "migrate" for the accounts you wish to process.
+## Prerequisites
 
---------------------------------------------------------------------------------
-EXPORT SCRIPT (Export-ADUserHashes.ps1)
---------------------------------------------------------------------------------
+- **Active Directory Access:** Administrative permissions in both source and target domains
+- **DSInternals Module:** PowerShell module must be installed and current (automatically installed if missing)
+- **Migration Marker:** Set your migration attribute (default: `pager`) to `"migrate"` for accounts you want to sync
+- **PowerShell:** Windows PowerShell 5.0+ or PowerShell Core
+- **Network:** No inter-domain connectivity required (files transferred manually)
 
-1. Checks if the 'DSInternals' module is installed and up to date. If not, 
-   it will install or update the module.
+## Quick Start
 
-2. Prompts you to enter the AD attribute to filter on. If no attribute is 
-   provided, it defaults to 'pager'.
+### Step 1: Export from Source Domain
 
-3. Uses cached credentials for the source domain if available. If not, it 
-   prompts for credentials and caches them for future use.
+```powershell
+.\Export-ADUserHashes.ps1
+```
 
-4. Retrieves all user account hashes from the source domain and filters them 
-   based on the specified AD attribute being set to "migrate".
+When prompted:
+- Enter the AD attribute to filter on (press Enter to use default: `pager`)
+- Provide source domain credentials if prompted
+- Script generates `sourceHashes.xml` and `exportData.xml`
 
-5. Exports the filtered account hashes to 'C:/scripts/sourceHashes.xml'.
+### Step 2: Transfer Files
 
-6. Exports necessary domain information and the attribute used to filter 
-   users to 'C:/scripts/exportData.xml'.
+Copy the generated files to the target domain environment:
+- `C:/scripts/sourceHashes.xml`
+- `C:/scripts/exportData.xml`
 
-7. Displays a success message with the count of exported accounts in green.
+### Step 3: Import to Target Domain
 
---------------------------------------------------------------------------------
-IMPORT SCRIPT (Import-ADUserHashes.ps1)
---------------------------------------------------------------------------------
+```powershell
+.\Import-ADUserHashes.ps1
+```
 
-1. Checks if the `DS-Internals` module is installed and up to date. If not, 
-   it will install or update the module.
+When prompted:
+- Provide target domain credentials if prompted
+- Script synchronizes password hashes for all marked users
 
-2. Uses cached credentials for the target domain if available. If not, it 
-   prompts for credentials and caches them for future use.
+## Detailed Script Behavior
 
-3. Imports the domain information and the attribute used to filter users from 
-   'C:/scripts/exportData.xml'.
+### Export-ADUserHashes.ps1
 
-4. Imports the filtered account hashes from 'C:/scripts/sourceHashes.xml'.
+1. **Module Check:** Verifies DSInternals is installed and current; installs/updates as needed
+2. **Attribute Prompt:** Requests the AD attribute to filter users on (defaults to `pager`)
+3. **Credential Handling:** Uses cached credentials from `C:/scripts/source1cred.xml` if available, otherwise prompts and caches them
+4. **Hash Retrieval:** Queries source domain for all user accounts with the specified attribute set to `"migrate"`
+5. **Export Files:** 
+   - `sourceHashes.xml` — Encrypted credential-containing hash data
+   - `exportData.xml` — Domain configuration and filter attribute metadata
+6. **Status Output:** Displays count of exported accounts in green
 
-5. Synchronizes the password hashes for the imported users in the target domain.
+### Import-ADUserHashes.ps1
 
-6. Displays a success message with the count of imported accounts in green.
+1. **Module Check:** Verifies DSInternals is installed and current
+2. **Credential Handling:** Uses cached credentials from `C:/scripts/target1cred.xml` if available, otherwise prompts and caches them
+3. **Metadata Import:** Reads domain configuration from `exportData.xml`
+4. **Hash Import:** Loads hashes from `sourceHashes.xml`
+5. **Synchronization:** Sets NT hashes for matching users in target domain
+6. **Status Output:** Displays count of successfully synchronized accounts in green
 
---------------------------------------------------------------------------------
-INTERACTION & REQUIREMENTS
---------------------------------------------------------------------------------
+## Configuration
 
-- During the execution of the export script, you will be prompted to enter the 
-  AD attribute to filter on. If no attribute is provided, it defaults to 'pager'.
-  
-- Ensure the specified AD attribute for user accounts in the source domain is 
-  set to "migrate".
+### Domain Settings
 
-- The scripts use cached credentials if available. If the credentials are not 
-  available or if the operation fails, you will be prompted to provide credentials.
+Edit the hardcoded domain variables in each script to match your environment:
 
---------------------------------------------------------------------------------
-USAGE
---------------------------------------------------------------------------------
+**Export Script:**
+```powershell
+$sourceDomainNetBIOS = 'source1'
+$sourceDomainFQDN = 'source1.local'
+$sourceDomainDN = 'DC=source1,DC=local'
+```
 
-1. Run the Export Script: Export-ADUserHashes.ps1
+**Import Script:**
+```powershell
+$targetDomainNetBIOS = 'target1'
+$targetDomainFQDN = 'target1.local'
+$targetDomainDN = 'DC=target1,DC=local'
+```
 
-   Follow the prompts to enter the AD attribute and provide credentials if needed.
-   The script will export the account hashes for users with the specified attribute 
-   set to "migrate".
+### Attribute Selection
 
-2. Copy the exported files ('sourceHashes.xml' and 'exportData.xml') to the 
-   target domain environment.
+The default filtering attribute is `pager`. You can use any AD attribute; ensure all users to migrate have that attribute set to exactly `"migrate"`.
 
-3. Run the Import Script: Import-ADUserHashes.ps1
+## Security Best Practices
 
-   Follow the prompts to provide credentials if needed. The script will import 
-   the account hashes and synchronize passwords for users with the specified 
-   attribute set to "migrate".
+⚠️ **Credential Management**
+- Cached credentials are stored in `C:/scripts/` as encrypted XML files—restrict access to this directory
+- Use service accounts with minimal required permissions (password hash read/write only)
+- Delete credential files after migration is complete
+- Never commit credential files to version control
 
---------------------------------------------------------------------------------
-DISCLAIMER
---------------------------------------------------------------------------------
+⚠️ **File Handling**
+- Store `sourceHashes.xml` securely during transfer between domains
+- Consider encrypting files in transit or using secure channels (SFTP, encrypted USB)
+- Delete export files from the source domain after successful import verification
+- Validate file integrity if transferring across untrusted networks
 
-This script was partially written, formatted, and documented by ChatGPT, an AI 
-language model developed by OpenAI. While significant effort has been made to 
-ensure the accuracy and reliability of the script, it is important to note the 
-following:
+⚠️ **Testing**
+- Test on a small subset of users first in a non-production environment
+- Verify password synchronization with a test user before full migration
+- Have a rollback plan in case of issues
 
-1. Validation Required: All scripts and code provided should be thoroughly 
-   validated and tested in a controlled environment before being executed in 
-   a production environment. This is to ensure that they function as intended 
-   and do not cause unintended consequences.
+## Troubleshooting
 
-2. Potential Bugs: Despite careful review, there may still be unintended bugs 
-   or issues present in the script. Users are encouraged to review the code and 
-   make any necessary adjustments to suit their specific requirements and 
-   environment.
+### Issue: "Module 'DSInternals' not found"
+- The script will automatically install DSInternals; ensure NuGet provider is available
+- If installation fails, manually install: `Install-Module -Name DSInternals`
 
-3. Security Considerations: Handling credentials and sensitive data requires 
-   careful attention to security best practices. Ensure that credential files 
-   are stored securely and access is restricted to authorized personnel only.
+### Issue: "Failed to retrieve account hashes"
+- Verify credentials have admin rights in source domain
+- Confirm domain FQDN and DN are correct
+- Check that the specified attribute exists in your AD schema
 
-4. Customization: The script may require customization to fit the unique setup 
-   and requirements of your Active Directory environment. Users should have a 
-   good understanding of their AD schema and configuration before making any 
-   changes.
+### Issue: "No account hashes retrieved"
+- Ensure target users have the migration attribute set to exactly `"migrate"`
+- Check the attribute name matches what you specified during export
 
-5. No Warranty: This script is provided "as-is" without any warranty of any 
-   kind, either expressed or implied. The author and OpenAI disclaim all 
-   warranties, including, but not limited to, the implied warranties of 
-   merchantability and fitness for a particular purpose.
+### Issue: "Failed to set password hash"
+- Verify target domain credentials have permission to modify user accounts
+- Confirm users exist in target domain with matching SAM account names
+- Check target domain FQDN and NetBIOS are correct
 
-By using this script, you acknowledge that you understand and accept these 
-conditions and take full responsibility for any outcomes resulting from its 
-use.
+### Credential Errors
+- Delete the cached credential file (`C:/scripts/source1cred.xml` or `target1cred.xml`)
+- Re-run the script to re-prompt for credentials
+- Verify credentials are correct and have necessary permissions
 
---------------------------------------------------------------------------------
-LICENSE
---------------------------------------------------------------------------------
+## Important Notes
 
-This work is licensed under the Creative Commons Attribution 4.0 International 
-License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
+- **Disconnected Operation:** Designed for environments where source and target domains cannot communicate directly
+- **Incremental Runs:** Scripts can be run multiple times; only marked users are processed
+- **User Matching:** Accounts are matched by `SamAccountName`; ensure naming is consistent between domains
+- **Error Handling:** Individual user failures don't stop the process; check output for any failed accounts
 
---------------------------------------------------------------------------------
-VERSION HISTORY
---------------------------------------------------------------------------------
+## License
 
-1.0 - Initial Release
+This work is licensed under the Creative Commons Attribution 4.0 International License.  
+Visit http://creativecommons.org/licenses/by/4.0/ for details.
+
+## Disclaimer
+
+⚠️ This script was partially written, formatted, and documented by ChatGPT (OpenAI). While significant effort has been made to ensure accuracy and reliability, please note:
+
+1. **Testing Required:** Thoroughly validate and test in a controlled environment before production use
+2. **Potential Issues:** Despite careful review, unintended bugs may exist; review code and adjust as needed
+3. **Security:** Handle credentials and sensitive data with care; follow best practices for secure storage
+4. **Customization:** Adapt scripts to your specific AD schema and environment requirements
+5. **Warranty:** Provided "as-is" without warranty. User assumes full responsibility for outcomes
+
+By using these scripts, you acknowledge understanding and accepting these conditions.
+
+## Version History
+
+| Version | Date | Notes |
+|---------|------|-------|
+| 1.0 | 2024-08-07 | Initial Release |
